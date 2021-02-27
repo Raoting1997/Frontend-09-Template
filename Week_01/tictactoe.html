@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>TicTacToe</title>
+    <style>
+        div {
+            display: inline-block;
+            box-sizing: border-box;
+        }
+        #board {
+            background: skyblue;
+            width: 300px;
+            margin: 0 auto;            
+        }
+
+        .cell {
+            border: 1px solid #f5f5f5;
+            width: 100px;
+            height: 100px;
+            line-height: 100px;
+            text-align: center;
+            font-size: 50px;
+            /* 如果不加这个 会导致样式有问题 */
+            vertical-align: middle; 
+        }
+    </style>
+</head>
+<body>
+    <div id="board"></div>
+</body>
+<script>
+    let pattern = [[0, 0, 0],[0, 0, 0],[0, 0, 0]];
+    let color = 2;
+
+    // 1.首先循环棋盘数组，显示到页面上(数组值 0 1 2)；
+    // 2.添加事件，点击 双方交替落子；
+    // 3.判断胜负（行、列、斜）
+    // 4.添加局部 AI
+    // 5.添加 bestChoice 函数
+    function show() {
+        let boardElement = document.getElementById('board');
+        boardElement.innerHTML = '';
+
+        for(let i = 0; i < pattern.length; i++) {
+            for(let j = 0; j < pattern[i].length; j++) {
+                let cellElement = document.createElement('div');
+                cellElement.classList.add('cell');
+                cellElement.addEventListener('click', () => move(i, j, pattern));
+                cellElement.innerHTML = pattern[i][j] === 0 ? '' : pattern[i][j] === 1 ? '⭕️' : '❌';
+                boardElement.appendChild(cellElement);
+            }
+        }
+    }
+
+    function move(i, j, pattern) {
+        pattern[i][j] = color;
+        if(check(pattern, color)) {
+            alert(color === 1 ? '⭕️ is winner' : '❌ is winner');
+        }
+        color = 3 - color;
+        show(pattern);
+        if(willWin(pattern, color)) {
+            console.log((color === 1 ? '⭕️' : '❌') + 'will win');
+        }
+        console.log(bestChoice(pattern, color))    
+        computerMove();            
+    }
+
+    function check(pattern, color) {
+        // 行连
+        for(let i = 0; i < pattern.length; i++) {
+            let win = true;
+
+            for(let j = 0; j < pattern[i].length; j++) {
+                if(pattern[i][j] !== color) {
+                    win = false;
+                }
+            }
+
+            if(win) {
+                return true;
+            }
+        }
+
+        // 列连
+        for(let i = 0; i < pattern.length; i++) {
+            let win = true;
+
+            for(let j = 0; j < pattern[i].length; j++) {
+                if(pattern[j][i] !== color) {
+                    win = false;
+                }
+            }
+
+            if(win) {
+                return true;
+            }
+        }
+
+        // 斜连
+        {
+            let win = true;
+
+            for(let i = 0; i < pattern.length; i++) {
+                if(pattern[i][i] !== color) {
+                    win = false;
+                }
+            }
+
+            if(win) {
+                return true;
+            }
+        }
+
+         // 反斜连
+         {
+            let win = true;
+
+            for(let i = 0; i < pattern.length; i++) {
+                if(pattern[i][2-i] !== color) {
+                    win = false;
+                }
+            }
+
+            if(win) {
+                return true;
+            }
+        }
+    }
+
+    function clone(pattern) {
+        // return Object.create(pattern);
+        return JSON.parse(JSON.stringify(pattern));
+    }
+
+    function willWin(pattern, color) {
+        for(let i = 0; i < pattern.length; i++) {
+            for(let j = 0; j < pattern[i].length; j++) {
+                if(pattern[i][j]) {
+                    continue;
+                }
+                let clonePattern = clone(pattern);
+                clonePattern[i][j] = color;
+                if(check(clonePattern, color)) {
+                    return [i, j];
+                }
+            }
+        }
+
+        return false;
+    }
+
+    function bestChoice(pattern, color) {
+        let p;
+        if( p = willWin(pattern, color)) {
+            return {
+                point: p,
+                result: 1
+            }
+        }
+
+        let result = -2;
+        let point = null;
+        outer:for(let i = 0; i < pattern.length; i++) {
+            for(let j = 0; j < pattern[i].length; j++) {
+                if(pattern[i][j]) {
+                    continue;
+                }
+                let clonePattern = clone(pattern);
+                clonePattern[i][j] = color;
+                let otherResult = bestChoice(clonePattern, 3 - color);
+                // 对方输了，就说明正方会赢
+                if(-otherResult.result > result) {
+                    point = [i, j];
+                    result = -otherResult.result;
+                }
+
+                if(result === 1) {
+                    break outer;
+                }
+            }
+        }
+
+        return {
+            point,
+            result: point ? result : 0,
+            who: color === 1 ? '⭕️' : '❌'
+        }
+    }
+
+    function computerMove() {
+        let choice = bestChoice(pattern, color);
+        if(choice.point) {
+            pattern[choice.point[0]][choice.point[1]] = color;
+        }
+        if(check(pattern, color)) {
+            alert(color === 1 ? '⭕️ is winner' : '❌ is winner');
+        }
+        color = 3 - color;
+        show();
+    }
+
+    show(pattern);
+</script>
+</html>
