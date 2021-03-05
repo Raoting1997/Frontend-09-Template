@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地图编辑器</title>
+</head>
+<style>
+    #map_board {
+        width: 800px;
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .map-cell {
+        width: 6px;
+        height: 6px;
+        background: #d5d5d5;
+        border: 1px solid #fff;
+        margin: 0;
+    }
+
+    .fill {
+        background: black;
+    }
+
+    .save-btn {
+        width: 100px;
+        height: 50px;
+        line-height: 50px;
+        border-radius: 10px;
+        text-align: center;
+        background: chocolate;
+        color: #fff;
+    }
+</style>
+
+<body>
+    <div id="map_board"></div>
+    <div class="save-btn" onclick="localStorage.map = JSON.stringify(mapData)">保存</div>
+</body>
+<script>
+    let mapData = localStorage.map ? JSON.parse(localStorage.map) : Array(10000).fill(0);
+    let mapContainer = document.getElementById('map_board');
+    let mouseDown = false; // 鼠标按下的标志
+    let clear = false; // 左键选中，右键清除
+
+    class Sorted {
+        constructor(data, compare) {
+            this.data = data.slice();
+            this.compare = compare || ((a, b) => a - b);
+        }
+
+        take() {
+            if (!this.data.length) {
+                return; // 不能return null，因为 null 会参与比较
+            }
+            let min = this.data[0];
+            let minIndex = 0;
+
+            for (let i = 0; i < this.data.length; i++) {
+                if (this.compare(this.data[i], min) < 0) {
+                    min = this.data[i];
+                    minIndex = i;
+                }
+            }
+
+            this.data[minIndex] = this.data[this.data.length - 1];
+            this.data.pop();
+            return min;
+        }
+
+        give(value) {
+            this.data.push(value);
+        }
+    }
+
+    for (let i = 0; i < 100; i++) { // 行
+        for (let j = 0; j < 100; j++) { // 列
+            let cell = document.createElement('div');
+            cell.classList.add('map-cell');
+
+            if (mapData[100 * i + j] === 1) {
+                cell.classList.add('fill');
+            }
+
+            // 添加事件 在鼠标按下时经过，切换选中状态
+            cell.addEventListener('mousemove', () => {
+                if (mouseDown) {
+                    if (clear) {
+                        cell.classList.remove('fill');
+                        mapData[100 * i + j] = 0;
+                    } else {
+                        cell.classList.add('fill');
+                        mapData[100 * i + j] = 1;
+                    }
+                }
+            });
+
+            mapContainer.appendChild(cell);
+        }
+    }
+    document.addEventListener('mousedown', e => {
+        mouseDown = true;
+        clear = (e.which === 3);
+    });
+    document.addEventListener('mouseup', () => {
+        mouseDown = false
+    });
+    // document.addEventListener('contextmenu', e => e.preventDefault());
+
+    function sleep(t) {
+        return new Promise(resolve => {
+            setTimeout(resolve, t);
+        });
+    }
+
+    // 寻路算法
+    async function findPath(map, start, end) {
+        let mapClone = Object.create(map);
+        // let queue = [start];
+        let queue = new Sorted([start], ((a, b) => distance(a) - distance(b))) // 取跟终点距离最小的点
+
+        function distance(point) {
+            return point ? (point[0] - end[0]) ** 2 + (point[1] - end[1]) ** 2 : 0;
+        }
+
+        async function insert(x, y, prev) {
+            // 判断是否可插入,边界情况、是否可走、是否走过
+            if (x < 0 || x >= 100 || y < 0 || y >= 100) {
+                return false;
+            }
+            if (mapClone[x * 100 + y]) {
+                return false;
+            }
+            // await sleep(30);
+            mapContainer.children[x * 100 + y].style.background = 'skyblue';
+            mapClone[x * 100 + y] = prev; // 保存前一个节点
+            // queue.push([x, y]);
+            queue.give([x, y])
+            console.log('插入了' + [x, y] + ', 现在 queue 是' + queue.data)
+        }
+
+        // 找队列中每个点的可走点，直到队列为空或者到终点为止
+        while (queue.data.length) {
+            // let [x, y] = queue.shift();
+            let [x, y] = queue.take();
+            console.log(queue.data);
+            if (x === end[0] && y === end[1]) {
+                console.log('寻路成功')
+                let path = [];
+
+                while (x !== start[0] || y !== start[1]) {
+                    path.push([x, y]);
+                    [x, y] = mapClone[x * 100 + y];
+                    await sleep(30);
+                    mapContainer.children[x * 100 + y].style.background = 'lightgreen';
+                }
+
+                return path;
+            }
+
+            // 否则插入上下左右四个点
+            await insert(x - 1, y, [x, y]);
+            await insert(x + 1, y, [x, y]);
+            await insert(x, y - 1, [x, y]);
+            await insert(x, y + 1, [x, y]);
+
+            await insert(x - 1, y - 1, [x, y]);
+            await insert(x + 1, y + 1, [x, y]);
+            await insert(x + 1, y - 1, [x, y]);
+            await insert(x - 1, y + 1, [x, y]);
+        }
+
+        return null;
+    }
+</script>
+
+</html>
